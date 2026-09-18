@@ -472,7 +472,7 @@
         };
         addRow(-4, 0, 4, AI);
         addRow(-3, -1, 4, AI);
-        [-2, -1, 0].forEach((q) => board.set(key(q, -2), AI));
+        [0, 1, 2].forEach((q) => board.set(key(q, -2), AI));
         addRow(4, -4, 0, HUMAN);
         addRow(3, -4, 1, HUMAN);
         [-2, -1, 0].forEach((q) => board.set(key(q, 2), HUMAN));
