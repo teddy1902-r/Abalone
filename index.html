@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Abalone — Duel hexagonal</title>
+  <style>
+    :root {
+      --bg-1: #071321;
+      --bg-2: #101d31;
+      --panel: rgba(13, 28, 48, .86);
+      --line: rgba(163, 190, 223, .16);
+      --text: #edf6ff;
+      --muted: #9db1c8;
+      --gold: #f6c96a;
+      --gold-2: #f29a4d;
+      --cyan: #54d8e4;
+      --danger: #ff7e86;
+      --shadow: 0 24px 60px rgba(0, 0, 0, .38);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 18% 8%, rgba(69, 191, 205, .16), transparent 28rem),
+        radial-gradient(circle at 90% 20%, rgba(244, 168, 76, .12), transparent 25rem),
+        linear-gradient(140deg, var(--bg-1), var(--bg-2) 55%, #08111f);
+      padding: 22px;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .25;
+      background-image: linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    .app {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+    }
+
+    .brand-mark {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 15px;
+      color: #081625;
+      background: linear-gradient(145deg, #ffe6a7, #ed9a42);
+      box-shadow: 0 7px 24px rgba(243, 166, 76, .26), inset 0 1px rgba(255,255,255,.7);
+      font-size: 25px;
+      font-weight: 900;
+      transform: rotate(30deg);
+    }
+
+    .brand-mark span { transform: rotate(-30deg); }
+
+    h1, h2, p { margin: 0; }
+    h1 { font-size: clamp(1.15rem, 2.3vw, 1.7rem); letter-spacing: -.04em; }
+    .eyebrow { color: var(--gold); font-size: .68rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 3px; }
+
+    .top-actions { display: flex; gap: 9px; align-items: center; }
+
+    button, select {
+      font: inherit;
+      color: inherit;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.07);
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    button { padding: 10px 14px; font-weight: 750; transition: transform .18s, background .18s, border-color .18s; }
+    button:hover { transform: translateY(-1px); background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.28); }
+    button:active { transform: translateY(0); }
+    button.primary { background: linear-gradient(135deg, #f9cf71, #ef9850); color: #142034; border: 0; box-shadow: 0 8px 20px rgba(239, 152, 80, .21); }
+
+    .game-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(285px, .55fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .board-card, .side-card {
+      border: 1px solid rgba(170, 205, 238, .16);
+      background: linear-gradient(145deg, rgba(25, 50, 77, .76), rgba(8, 22, 38, .88));
+      box-shadow: var(--shadow), inset 0 1px rgba(255,255,255,.05);
+      backdrop-filter: blur(18px);
+      border-radius: 24px;
+    }
+
+    .board-card { min-width: 0; padding: clamp(12px, 2vw, 23px); overflow: hidden; }
+
+    .board-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 0 4px 10px;
+    }
+
+    .turn-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 999px;
+      padding: 7px 11px;
+      color: var(--muted);
+      font-size: .76rem;
+      white-space: nowrap;
+    }
+
+    .turn-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 12px var(--cyan); }
+    .turn-dot.ai { background: var(--gold); box-shadow: 0 0 12px var(--gold); }
+
+    .board-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 790px;
+      margin: 0 auto;
+      border-radius: 20px;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse at center, rgba(79, 210, 216, .1), transparent 47%),
+        linear-gradient(145deg, #102945, #0a1a2e 68%, #081522);
+      border: 1px solid rgba(100, 191, 211, .18);
+      box-shadow: inset 0 0 50px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.05);
+    }
+
+    svg { display: block; width: 100%; height: auto; touch-action: manipulation; user-select: none; }
+
+    .board-frame { fill: none; stroke: rgba(255,255,255,.12); stroke-width: 2; }
+    .cell { fill: #163a59; stroke: rgba(144, 220, 228, .17); stroke-width: 1.5; transition: fill .18s, stroke .18s, transform .18s; }
+    .cell:hover { fill: #205172; }
+    .cell.selected { fill: #226a79; stroke: #a6f5ec; stroke-width: 2.4; filter: url(#glow); }
+    .cell.last { stroke: rgba(246, 201, 106, .95); stroke-width: 2; }
+    .marble { stroke: rgba(255,255,255,.5); stroke-width: 1.4; filter: url(#marbleShadow); pointer-events: none; }
+    .marble.human { fill: url(#humanMarble); }
+    .marble.ai { fill: url(#aiMarble); }
+    .marble-shine { fill: rgba(255,255,255,.55); pointer-events: none; }
+    .move-hint { fill: rgba(166, 245, 236, .75); stroke: #d3fffb; stroke-width: 1; pointer-events: none; }
+    .push-hint { fill: rgba(246, 201, 106, .82); stroke: #fff0b3; stroke-width: 1; pointer-events: none; }
+
+    .board-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: .77rem;
+    }
+
+    .board-footer span:last-child { text-align: right; }
+
+    .side-card { padding: 20px; display: flex; flex-direction: column; gap: 17px; }
+
+    .scoreboard { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 9px; }
+    .score { padding: 13px 10px; border-radius: 17px; background: rgba(255,255,255,.055); border: 1px solid rgba(255,255,255,.08); text-align: center; }
+    .score.ai { background: rgba(245, 201, 106, .06); }
+    .score-label { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
+    .score-number { font-size: 2rem; line-height: 1; margin: 5px 0; font-weight: 900; }
+    .score-sub { color: var(--muted); font-size: .68rem; }
+    .versus { color: var(--gold); font-weight: 900; font-size: .78rem; }
+
+    .status-box { border-left: 3px solid var(--cyan); border-radius: 10px; background: rgba(84,216,228,.08); padding: 12px 13px; }
+    .status-title { font-weight: 850; font-size: .92rem; }
+    .status-text { color: var(--muted); font-size: .78rem; line-height: 1.45; margin-top: 4px; }
+
+    .settings { display: grid; gap: 8px; }
+    .settings label { color: var(--muted); font-size: .74rem; }
+    select { width: 100%; padding: 10px 11px; outline: none; }
+    select:focus { border-color: var(--cyan); }
+
+    .rule-card { border-top: 1px solid var(--line); padding-top: 15px; }
+    .rule-card h2 { font-size: .9rem; margin-bottom: 9px; }
+    .rule-card p { color: var(--muted); font-size: .76rem; line-height: 1.55; }
+    .rule-card strong { color: #e9f6ff; }
+
+    .side-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
+    .side-actions button { padding: 11px 8px; font-size: .78rem; }
+
+    .modal-backdrop { position: fixed; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(3, 10, 18, .74); z-index: 20; opacity: 1; transition: opacity .2s; }
+    .modal-backdrop[hidden] { display: none; }
+    .modal { width: min(560px, 100%); border: 1px solid rgba(177, 222, 237, .22); border-radius: 22px; padding: 23px; background: linear-gradient(145deg, #142f4a, #091827); box-shadow: 0 28px 80px rgba(0,0,0,.52); }
+    .modal h2 { font-size: 1.3rem; margin-bottom: 13px; }
+    .modal p, .modal li { color: var(--muted); font-size: .88rem; line-height: 1.55; }
+    .modal ul { margin: 10px 0 18px; padding-left: 20px; }
+    .modal-close { width: 100%; }
+
+    .win-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5, 17, 29, .63); backdrop-filter: blur(5px); z-index: 5; }
+    .win-panel { width: min(370px, 82%); text-align: center; padding: 26px 20px; border-radius: 21px; border: 1px solid rgba(255,255,255,.18); background: linear-gradient(145deg, rgba(25, 58, 82, .96), rgba(10, 26, 44, .97)); box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+    .win-kicker { color: var(--gold); text-transform: uppercase; letter-spacing: .16em; font-size: .68rem; font-weight: 850; }
+    .win-panel h2 { font-size: 1.55rem; margin: 6px 0 7px; }
+    .win-panel p { color: var(--muted); font-size: .82rem; margin-bottom: 17px; }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 850px) {
+      body { padding: 12px; }
+      .game-layout { grid-template-columns: 1fr; }
+      .side-card { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .scoreboard, .status-box, .settings, .side-actions, .rule-card { grid-column: span 2; }
+      .rule-card { margin-top: -2px; }
+      .side-actions { margin-top: 0; }
+    }
+
+    @media (max-width: 520px) {
+      .topbar { align-items: flex-start; }
+      .top-actions button:first-child { display: none; }
+      .brand-mark { width: 42px; height: 42px; font-size: 22px; }
+      .board-card { padding: 9px; border-radius: 19px; }
+      .board-head { margin: 0 3px 8px; }
+      .turn-pill { font-size: .68rem; padding: 6px 8px; }
+      .board-footer { font-size: .68rem; }
+      .side-card { padding: 14px; border-radius: 19px; }
+      .score-number { font-size: 1.65rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"><span>✦</span></div>
+        <div>
+          <div class="eyebrow">Duel hexagonal</div>
+          <h1>Abalone</h1>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="helpBtn" type="button">Règles</button>
+        <button id="newGameTop" class="primary" type="button">Nouvelle partie</button>
+      </div>
+    </header>
+
+    <section class="game-layout">
+      <section class="board-card" aria-label="Plateau de jeu Abalone">
+        <div class="board-head">
+          <div>
+            <div class="eyebrow">Partie en cours</div>
+            <div id="turnTitle" style="font-weight: 850;">À toi de jouer</div>
+          </div>
+          <div class="turn-pill"><span id="turnDot" class="turn-dot"></span><span id="turnLabel">Tes billes</span></div>
+        </div>
+        <div id="boardWrap" class="board-wrap">
+          <svg id="boardSvg" viewBox="0 0 820 560" role="img" aria-label="Plateau hexagonal d'Abalone">
+            <defs>
+              <radialGradient id="humanMarble" cx="30%" cy="25%">
+                <stop offset="0" stop-color="#e9ffff" />
+                <stop offset=".34" stop-color="#93edf0" />
+                <stop offset="1" stop-color="#187f93" />
+              </radialGradient>
+              <radialGradient id="aiMarble" cx="28%" cy="22%">
+                <stop offset="0" stop-color="#fff8d8" />
+                <stop offset=".32" stop-color="#f6d27c" />
+                <stop offset="1" stop-color="#aa5a2e" />
+              </radialGradient>
+              <filter id="marbleShadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000" flood-opacity=".5" />
+              </filter>
+              <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2.2" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+            <g id="boardRoot" transform="translate(410 280)"></g>
+          </svg>
+          <div id="winOverlay" class="win-overlay hidden">
+            <div class="win-panel">
+              <div class="win-kicker">Partie terminée</div>
+              <h2 id="winTitle">Victoire !</h2>
+              <p id="winText">Tu as réussi à repousser six billes adverses.</p>
+              <button id="newGameWin" class="primary" type="button">Rejouer</button>
+            </div>
+          </div>
+        </div>
+        <div class="board-footer">
+          <span id="moveCount">Tour 1 · 0 déplacement</span>
+          <span>Sélectionne une bille, puis sa direction</span>
+        </div>
+      </section>
+
+      <aside class="side-card">
+        <div class="scoreboard">
+          <div class="score">
+            <div class="score-label">Toi</div>
+            <div id="humanScore" class="score-number">14</div>
+            <div class="score-sub">billes restantes</div>
+          </div>
+          <div class="versus">VS</div>
+          <div class="score ai">
+            <div class="score-label">Ordinateur</div>
+            <div id="aiScore" class="score-number">14</div>
+            <div class="score-sub">billes restantes</div>
+          </div>
+        </div>
+
+        <div class="status-box">
+          <div id="statusTitle" class="status-title">À toi de jouer</div>
+          <div id="statusText" class="status-text">Clique sur une de tes billes pour commencer.</div>
+        </div>
+
+        <div class="settings">
+          <label for="difficulty">Niveau de l’ordinateur</label>
+          <select id="difficulty">
+            <option value="easy">Découverte</option>
+            <option value="normal" selected>Stratège</option>
+            <option value="hard">Expert</option>
+          </select>
+        </div>
+
+        <div class="rule-card">
+          <h2>Le but</h2>
+          <p>Repousse <strong>six billes</strong> de l’ordinateur hors du plateau. Un groupe de deux ou trois billes peut pousser un groupe adverse moins nombreux.</p>
+        </div>
+
+        <div class="side-actions">
+          <button id="undoBtn" type="button">Annuler le dernier tour</button>
+          <button id="newGameSide" class="primary" type="button">Recommencer</button>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div id="helpModal" class="modal-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <h2 id="helpTitle">Comment jouer à Abalone ?</h2>
+      <p>Le plateau contient 61 emplacements. Tes billes sont bleues, celles de l’ordinateur sont dorées.</p>
+      <ul>
+        <li>Clique sur une bille bleue pour la sélectionner.</li>
+        <li>Clique sur une bille voisine de la même ligne pour former un groupe de deux ou trois.</li>
+        <li>Clique ensuite sur une case vide pour déplacer le groupe.</li>
+        <li>Un groupe peut se déplacer de côté si les cases sont libres, ou avancer en ligne.</li>
+        <li>Pour pousser, ton groupe doit être plus nombreux que le groupe adverse et celui-ci doit être en première ligne.</li>
+      </ul>
+      <button id="closeHelp" class="modal-close primary" type="button">J’ai compris</button>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const HUMAN = "human";
+      const AI = "ai";
+      const RADIUS = 4;
+      const CELL_SIZE = 34;
+      const MARBLE_RADIUS = 20;
+      const DIRS = [
+        { q: 1, r: 0 }, { q: 1, r: -1 }, { q: 0, r: -1 },
+        { q: -1, r: 0 }, { q: -1, r: 1 }, { q: 0, r: 1 }
+      ];
+      const AXES = DIRS.slice(0, 3);
+      const key = (q, r) => `${q},${r}`;
+      const parseKey = (value) => { const [q, r] = value.split(",").map(Number); return { q, r }; };
+      const add = (a, d) => ({ q: a.q + d.q, r: a.r + d.r });
+      const same = (a, b) => a.q === b.q && a.r === b.r;
+      const equalDir = (a, b) => a.q === b.q && a.r === b.r;
+      const opposite = (d) => ({ q: -d.q, r: -d.r });
+      const dot = (a, b) => a.q * b.q + a.r * b.r;
+      const coordList = [];
+      const boardKeys = new Set();
+      const cells = new Map();
+
+      for (let q = -RADIUS; q <= RADIUS; q++) {
+        for (let r = -RADIUS; r <= RADIUS; r++) {
+          const s = -q - r;
+          if (Math.max(Math.abs(q), Math.abs(r), Math.abs(s)) <= RADIUS) {
+            const position = { q, r };
+            coordList.push(position);
+            boardKeys.add(key(q, r));
+          }
+        }
+      }
+
+      const boardRoot = document.getElementById("boardRoot");
+      const boardSvg = document.getElementById("boardSvg");
+      const boardWrap = document.getElementById("boardWrap");
+      const statusTitle = document.getElementById("statusTitle");
+      const statusText = document.getElementById("statusText");
+      const turnTitle = document.getElementById("turnTitle");
+      const turnLabel = document.getElementById("turnLabel");
+      const turnDot = document.getElementById("turnDot");
+      const humanScore = document.getElementById("humanScore");
+      const aiScore = document.getElementById("aiScore");
+      const moveCount = document.getElementById("moveCount");
+      const winOverlay = document.getElementById("winOverlay");
+      const winTitle = document.getElementById("winTitle");
+      const winText = document.getElementById("winText");
+      const difficulty = document.getElementById("difficulty");
+
+      let state;
+      let selected = [];
+      let currentTurn = HUMAN;
+      let gameOver = false;
+      let aiThinking = false;
+      let turnNumber = 1;
+      let moveNumber = 0;
+      let lastMove = [];
+      let history = [];
+
+      const svgEl = (name, attrs = {}) => {
+        const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+        Object.entries(attrs).forEach(([attribute, value]) => node.setAttribute(attribute, value));
+        return node;
+      };
+
+      const center = (position) => ({
+        x: Math.sqrt(3) * CELL_SIZE * (position.q + position.r / 2),
+        y: 1.5 * CELL_SIZE * position.r
+      });
+
+      const inBoard = (position) => boardKeys.has(key(position.q, position.r));
+      const occupant = (board, position) => board.get(key(position.q, position.r)) || null;
+      const directionBetween = (from, to) => DIRS.find((direction) => same(add(from, direction), to)) || null;
+
+      function drawBoard() {
+        boardRoot.innerHTML = "";
+        const frame = svgEl("polygon", {
+          class: "board-frame",
+          points: "-364,0 -182,-315 182,-315 364,0 182,315 -182,315"
+        });
+        boardRoot.appendChild(frame);
+
+        coordList.forEach((position) => {
+          const point = center(position);
+          const group = svgEl("g", { transform: `translate(${point.x} ${point.y})` });
+          const cell = svgEl("circle", { class: "cell", r: 25, "data-key": key(position.q, position.r) });
+          const marble = svgEl("circle", { class: "marble hidden", r: MARBLE_RADIUS });
+          const shine = svgEl("ellipse", { class: "marble-shine hidden", cx: -7, cy: -9, rx: 5, ry: 3.5 });
+          group.append(cell, marble, shine);
+          boardRoot.appendChild(group);
+          cells.set(key(position.q, position.r), { group, cell, marble, shine });
+        });
+
+        boardRoot.addEventListener("click", onBoardClick);
+      }
+
+      function initialState() {
+        const board = new Map();
+        const addRow = (r, qStart, qEnd, who) => {
+          for (let q = qStart; q <= qEnd; q++) board.set(key(q, r), who);
+        };
+        addRow(-4, 0, 4, AI);
+        addRow(-3, -1, 4, AI);
+        [-2, -1, 0].forEach((q) => board.set(key(q, -2), AI));
+        addRow(4, -4, 0, HUMAN);
+        addRow(3, -4, 1, HUMAN);
+        [-2, -1, 0].forEach((q) => board.set(key(q, 2), HUMAN));
+        return { board, counts: { human: 14, ai: 14 } };
+      }
+
+      function cloneState(source) {
+        return { board: new Map(source.board), counts: { ...source.counts } };
+      }
+
+      function updateStatus(title, text, type = "human") {
+        statusTitle.textContent = title;
+        statusText.textContent = text;
+        turnTitle.textContent = type === "ai" ? "L’ordinateur réfléchit" : title;
+        turnLabel.textContent = type === "ai" ? "Tour adverse" : "Tes billes";
+        turnDot.classList.toggle("ai", type === "ai");
+      }
+
+      function render() {
+        cells.forEach(({ cell, marble, shine }, cellKey) => {
+          cell.classList.toggle("selected", selected.some((position) => key(position.q, position.r) === cellKey));
+          cell.classList.toggle("last", lastMove.some((position) => key(position.q, position.r) === cellKey));
+          const who = state.board.get(cellKey);
+          marble.classList.toggle("hidden", !who);
+          shine.classList.toggle("hidden", !who);
+          if (who) marble.setAttribute("class", `marble ${who}`);
+          else marble.setAttribute("class", "marble hidden");
+        });
+        humanScore.textContent = state.counts.human;
+        aiScore.textContent = state.counts.ai;
+        moveCount.textContent = `Tour ${turnNumber} · ${moveNumber} déplacement${moveNumber > 1 ? "s" : ""}`;
+        drawHints();
+      }
+
+      function drawHints() {
+        boardRoot.querySelectorAll(".hint").forEach((node) => node.remove());
+        if (selected.length === 0 || currentTurn !== HUMAN || gameOver || aiThinking) return;
+        const hints = new Map();
+        DIRS.forEach((direction) => {
+          const move = validateMove(state, selected, direction, HUMAN);
+          if (move.valid) {
+            const destinations = move.inline ? [move.destination] : move.destinations;
+            destinations.forEach((destination) => {
+              hints.set(key(destination.q, destination.r), move.pushCount > 0 ? "push-hint" : "move-hint");
+            });
+          }
+        });
+        hints.forEach((className, destinationKey) => {
+          const point = center(parseKey(destinationKey));
+          const hint = svgEl("circle", { class: `hint ${className}`, r: 6, cx: point.x, cy: point.y });
+          boardRoot.appendChild(hint);
+        });
+      }
+
+      function sortedGroup(group) {
+        if (group.length < 2) return group.slice();
+        const direction = directionBetween(group[0], group[1]);
+        if (!direction) return group.slice();
+        return group.slice().sort((a, b) => dot(a, direction) - dot(b, direction));
+      }
+
+      function groupAxis(group) {
+        if (group.length < 2) return null;
+        const sorted = sortedGroup(group);
+        return directionBetween(sorted[0], sorted[1]);
+      }
+
+      function validateMove(source, groupInput, direction, who) {
+        const group = sortedGroup(groupInput);
+        if (!group.length || group.length > 3) return { valid: false };
+        if (group.some((position) => occupant(source.board, position) !== who)) return { valid: false };
+        const axis = groupAxis(group);
+        const inline = group.length === 1 || (axis && (equalDir(direction, axis) || equalDir(direction, opposite(axis))));
+
+        if (!inline) {
+          const destinations = group.map((position) => add(position, direction));
+          if (destinations.some((position) => !inBoard(position) || occupant(source.board, position))) return { valid: false };
+          return { valid: true, destination: add(group[0], direction), destinations, pushCount: 0, inline: false };
+        }
+
+        const front = group.reduce((best, position) => dot(position, direction) > dot(best, direction) ? position : best, group[0]);
+        let cursor = add(front, direction);
+        if (!inBoard(cursor)) return { valid: false };
+        const firstOccupant = occupant(source.board, cursor);
+        if (!firstOccupant) {
+          return { valid: true, destination: cursor, destinations: group.map((position) => add(position, direction)), pushCount: 0, inline: true };
+        }
+        if (firstOccupant === who || group.length === 1) return { valid: false };
+
+        const pushed = [];
+        while (inBoard(cursor) && occupant(source.board, cursor) === (who === HUMAN ? AI : HUMAN)) {
+          pushed.push(cursor);
+          cursor = add(cursor, direction);
+        }
+        if (pushed.length >= group.length) return { valid: false };
+        if (inBoard(cursor) && occupant(source.board, cursor)) return { valid: false };
+        return { valid: true, destination: add(front, direction), destinations: group.map((position) => add(position, direction)), pushCount: pushed.length, pushed, inline: true };
+      }
+
+      function applyMove(source, groupInput, direction, who) {
+        const move = validateMove(source, groupInput, direction, who);
+        if (!move.valid) return null;
+        const group = sortedGroup(groupInput);
+        const next = cloneState(source);
+        const opponent = who === HUMAN ? AI : HUMAN;
+        group.forEach((position) => next.board.delete(key(position.q, position.r)));
+
+        if (move.pushCount) {
+          for (let index = move.pushed.length - 1; index >= 0; index--) {
+            const pushedPosition = move.pushed[index];
+            const pushedDestination = add(pushedPosition, direction);
+            next.board.delete(key(pushedPosition.q, pushedPosition.r));
+            if (inBoard(pushedDestination)) next.board.set(key(pushedDestination.q, pushedDestination.r), opponent);
+            else next.counts[opponent] -= 1;
+          }
+        }
+
+        group.forEach((position) => {
+          next.board.set(key(add(position, direction).q, add(position, direction).r), who);
+        });
+        return { state: next, move, group, direction };
+      }
+
+      function legalGroups(source, who) {
+        const groups = [];
+        source.board.forEach((value, cellKey) => {
+          if (value !== who) return;
+          const origin = parseKey(cellKey);
+          groups.push([origin]);
+          AXES.forEach((axis) => {
+            const next = add(origin, axis);
+            const nextNext = add(next, axis);
+            if (occupant(source.board, next) === who) {
+              groups.push(sortedGroup([origin, next]));
+              if (occupant(source.board, nextNext) === who) groups.push(sortedGroup([origin, next, nextNext]));
+            }
+          });
+        });
+        return groups;
+      }
+
+      function getLegalMoves(source, who) {
+        const moves = [];
+        legalGroups(source, who).forEach((group) => {
+          DIRS.forEach((direction) => {
+            const result = applyMove(source, group, direction, who);
+            if (result) moves.push(result);
+          });
+        });
+        return moves;
+      }
+
+      function centerScore(position) {
+        return 4 - Math.max(Math.abs(position.q), Math.abs(position.r), Math.abs(-position.q - position.r));
+      }
+
+      function evaluateAiMove(before, result) {
+        const after = result.state;
+        const captured = before.counts.human - after.counts.human;
+        let score = captured * 160;
+        let beforeProgress = 0;
+        let afterProgress = 0;
+        before.board.forEach((who, cellKey) => {
+          if (who === AI) beforeProgress += parseKey(cellKey).r;
+        });
+        after.board.forEach((who, cellKey) => {
+          if (who === AI) {
+            const position = parseKey(cellKey);
+            afterProgress += position.r;
+            score += centerScore(position) * 1.8;
+          }
+        });
+        score += (afterProgress - beforeProgress) * 2.3;
+        score += (result.group.length - 1) * 2;
+        score += Math.random() * (difficulty.value === "hard" ? .6 : difficulty.value === "normal" ? 8 : 30);
+        return score;
+      }
+
+      function chooseAiMove() {
+        const moves = getLegalMoves(state, AI);
+        if (!moves.length) return null;
+        if (difficulty.value === "easy") return moves[Math.floor(Math.random() * moves.length)];
+        const scored = moves.map((move) => ({ move, score: evaluateAiMove(state, move) })).sort((a, b) => b.score - a.score);
+        if (difficulty.value === "normal") return scored[Math.floor(Math.random() * Math.min(5, scored.length))].move;
+        return scored[0].move;
+      }
+
+      function checkWinner() {
+        if (state.counts.human <= 8) return AI;
+        if (state.counts.ai <= 8) return HUMAN;
+        return null;
+      }
+
+      function finishGame(winner) {
+        gameOver = true;
+        currentTurn = null;
+        selected = [];
+        if (winner === HUMAN) {
+          winTitle.textContent = "Victoire !";
+          winText.textContent = "Tu as repoussé six billes de l’ordinateur. Belle maîtrise du plateau.";
+          updateStatus("Victoire !", "La partie est gagnée. Tu peux recommencer quand tu veux.");
+        } else {
+          winTitle.textContent = "L’ordinateur gagne";
+          winText.textContent = "Six de tes billes ont quitté le plateau. Une revanche ?";
+          updateStatus("Partie terminée", "L’ordinateur a remporté le duel cette fois-ci.", "ai");
+        }
+        winOverlay.classList.remove("hidden");
+        render();
+      }
+
+      function saveHistory() {
+        history.push({ state: cloneState(state), currentTurn, turnNumber, moveNumber, lastMove: lastMove.slice() });
+        if (history.length > 20) history.shift();
+      }
+
+      function performHumanMove(group, direction) {
+        const result = applyMove(state, group, direction, HUMAN);
+        if (!result) return false;
+        saveHistory();
+        state = result.state;
+        lastMove = group.map((position) => add(position, direction));
+        selected = [];
+        moveNumber += 1;
+        const winner = checkWinner();
+        if (winner) { render(); finishGame(winner); return true; }
+        currentTurn = AI;
+        aiThinking = true;
+        updateStatus("Bon déplacement", result.move.pushCount ? `Tu as repoussé ${result.move.pushCount} bille${result.move.pushCount > 1 ? "s" : ""}. L’ordinateur joue…` : "L’ordinateur prépare sa réponse…", "ai");
+        render();
+        window.setTimeout(performAiMove, 520);
+        return true;
+      }
+
+      function performAiMove() {
+        if (gameOver) return;
+        const result = chooseAiMove();
+        aiThinking = false;
+        if (!result) {
+          finishGame(HUMAN);
+          return;
+        }
+        state = result.state;
+        lastMove = result.group.map((position) => add(position, result.direction));
+        moveNumber += 1;
+        const winner = checkWinner();
+        if (winner) { render(); finishGame(winner); return; }
+        currentTurn = HUMAN;
+        turnNumber += 1;
+        updateStatus("À toi de jouer", result.move.pushCount ? `L’ordinateur a repoussé ${result.move.pushCount} de tes billes. À toi de réagir !` : "Choisis une bille ou un groupe de billes bleues.");
+        render();
+      }
+
+      function canAddToSelection(position) {
+        if (!selected.length) return true;
+        if (selected.some((item) => same(item, position))) return false;
+        if (selected.length === 1) return !!directionBetween(selected[0], position);
+        const group = sortedGroup(selected);
+        const axis = groupAxis(group);
+        if (!axis) return false;
+        const before = add(group[0], opposite(axis));
+        const after = add(group[group.length - 1], axis);
+        return same(position, before) || same(position, after);
+      }
+
+      function selectMarble(position) {
+        if (selected.some((item) => same(item, position))) {
+          selected = selected.filter((item) => !same(item, position));
+          return;
+        }
+        if (canAddToSelection(position) && selected.length < 3) selected = sortedGroup([...selected, position]);
+        else selected = [position];
+      }
+
+      function onBoardClick(event) {
+        if (gameOver || currentTurn !== HUMAN || aiThinking) return;
+        const target = event.target.closest("[data-key]");
+        if (!target) return;
+        const position = parseKey(target.dataset.key);
+        const who = occupant(state.board, position);
+        if (who === HUMAN) {
+          selectMarble(position);
+          const text = selected.length > 1 ? `Groupe de ${selected.length} billes sélectionné. Choisis une direction.` : "Bille sélectionnée. Choisis une case d’arrivée.";
+          updateStatus("À toi de jouer", text);
+          render();
+          return;
+        }
+        if (!selected.length) return;
+        const chosen = DIRS.map((candidate) => ({
+          direction: candidate,
+          move: validateMove(state, selected, candidate, HUMAN)
+        })).find(({ move }) => move.valid && (move.inline
+          ? same(move.destination, position)
+          : move.destinations.some((destination) => same(destination, position))));
+        if (chosen) performHumanMove(selected, chosen.direction);
+      }
+
+      function newGame() {
+        state = initialState();
+        selected = [];
+        currentTurn = HUMAN;
+        gameOver = false;
+        aiThinking = false;
+        turnNumber = 1;
+        moveNumber = 0;
+        lastMove = [];
+        history = [];
+        winOverlay.classList.add("hidden");
+        updateStatus("À toi de jouer", "Clique sur une de tes billes pour commencer.");
+        render();
+      }
+
+      function undo() {
+        if (aiThinking || gameOver || !history.length) return;
+        const previous = history[history.length - 1];
+        history.pop();
+        state = previous.state;
+        currentTurn = previous.currentTurn;
+        turnNumber = previous.turnNumber;
+        moveNumber = previous.moveNumber;
+        lastMove = previous.lastMove;
+        selected = [];
+        updateStatus("À toi de jouer", "Le dernier déplacement a été annulé.");
+        render();
+      }
+
+      document.getElementById("newGameTop").addEventListener("click", newGame);
+      document.getElementById("newGameSide").addEventListener("click", newGame);
+      document.getElementById("newGameWin").addEventListener("click", newGame);
+      document.getElementById("undoBtn").addEventListener("click", undo);
+      document.getElementById("helpBtn").addEventListener("click", () => { document.getElementById("helpModal").hidden = false; });
+      document.getElementById("closeHelp").addEventListener("click", () => { document.getElementById("helpModal").hidden = true; });
+      document.getElementById("helpModal").addEventListener("click", (event) => { if (event.target.id === "helpModal") event.currentTarget.hidden = true; });
+
+      drawBoard();
+      newGame();
+    })();
+  </script>
+</body>
+</html>
