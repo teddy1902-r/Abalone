@@ -674,7 +674,7 @@
           if (!response.ok) throw new Error("secret unavailable");
           const result = await response.json();
           if (!result.word) throw new Error("secret missing");
-          winSecret.textContent = `Mot secret : ${result.word}`;
+          winSecret.textContent = `Mot secret à mettre dans Certitude : ${result.word}`;
         } catch (error) {
           winSecret.textContent = "Mot secret indisponible pour le moment";
         }
