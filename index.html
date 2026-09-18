@@ -654,10 +654,8 @@
       function chooseAiMove() {
         const moves = getLegalMoves(state, AI);
         if (!moves.length) return null;
-        if (difficulty.value === "easy") return moves[Math.floor(Math.random() * moves.length)];
         const scored = moves.map((move) => ({ move, score: evaluateAiMove(state, move) })).sort((a, b) => b.score - a.score);
-        if (difficulty.value === "normal") return scored[Math.floor(Math.random() * Math.min(5, scored.length))].move;
-        return scored[0].move;
+        return scored[Math.floor(Math.random() * Math.min(5, scored.length))].move;
       }
 
       function checkWinner() {
