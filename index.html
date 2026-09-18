@@ -196,6 +196,8 @@
 
     .settings { display: grid; gap: 8px; }
     .settings label { color: var(--muted); font-size: .74rem; }
+    .level-fixed { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 11px; border: 1px solid rgba(246, 201, 106, .28); border-radius: 12px; background: rgba(246, 201, 106, .08); color: var(--gold); font-weight: 850; }
+    .level-fixed small { color: var(--muted); font-size: .68rem; font-weight: 600; }
     select { width: 100%; padding: 10px 11px; outline: none; }
     select:focus { border-color: var(--cyan); }
 
@@ -220,6 +222,7 @@
     .win-kicker { color: var(--gold); text-transform: uppercase; letter-spacing: .16em; font-size: .68rem; font-weight: 850; }
     .win-panel h2 { font-size: 1.55rem; margin: 6px 0 7px; }
     .win-panel p { color: var(--muted); font-size: .82rem; margin-bottom: 17px; }
+    .win-secret { min-height: 24px; margin: -5px 0 16px; color: #fff0ad; font-size: 1rem; font-weight: 900; letter-spacing: .08em; }
 
     .hidden { display: none !important; }
 
@@ -298,6 +301,7 @@
               <div class="win-kicker">Partie terminée</div>
               <h2 id="winTitle">Victoire !</h2>
               <p id="winText">Tu as réussi à repousser six billes adverses.</p>
+              <div id="winSecret" class="win-secret"></div>
               <button id="newGameWin" class="primary" type="button">Rejouer</button>
             </div>
           </div>
@@ -329,12 +333,8 @@
         </div>
 
         <div class="settings">
-          <label for="difficulty">Niveau de l’ordinateur</label>
-          <select id="difficulty">
-            <option value="easy">Découverte</option>
-            <option value="normal" selected>Stratège</option>
-            <option value="hard">Expert</option>
-          </select>
+          <label>Niveau de l’ordinateur</label>
+          <div class="level-fixed"><span>Stratège</span><small>Niveau fixe</small></div>
         </div>
 
         <div class="rule-card">
@@ -415,7 +415,8 @@
       const winOverlay = document.getElementById("winOverlay");
       const winTitle = document.getElementById("winTitle");
       const winText = document.getElementById("winText");
-      const difficulty = document.getElementById("difficulty");
+      const winSecret = document.getElementById("winSecret");
+      const SECRET_API_URL = "https://abalone-secret.teddysegura-ts.workers.dev/secret";
 
       let state;
       let selected = [];
@@ -646,7 +647,7 @@
         });
         score += (afterProgress - beforeProgress) * 2.3;
         score += (result.group.length - 1) * 2;
-        score += Math.random() * (difficulty.value === "hard" ? .6 : difficulty.value === "normal" ? 8 : 30);
+        score += Math.random() * 8;
         return score;
       }
 
@@ -665,6 +666,22 @@
         return null;
       }
 
+      async function revealSecretWord() {
+        try {
+          const response = await fetch(SECRET_API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ game: "abalone", event: "victory" })
+          });
+          if (!response.ok) throw new Error("secret unavailable");
+          const result = await response.json();
+          if (!result.word) throw new Error("secret missing");
+          winSecret.textContent = `Mot secret : ${result.word}`;
+        } catch (error) {
+          winSecret.textContent = "Mot secret indisponible pour le moment";
+        }
+      }
+
       function finishGame(winner) {
         gameOver = true;
         currentTurn = null;
@@ -672,10 +689,13 @@
         if (winner === HUMAN) {
           winTitle.textContent = "Victoire !";
           winText.textContent = "Tu as repoussé six billes de l’ordinateur. Belle maîtrise du plateau.";
+          winSecret.textContent = "Récupération du mot secret…";
           updateStatus("Victoire !", "La partie est gagnée. Tu peux recommencer quand tu veux.");
+          revealSecretWord();
         } else {
           winTitle.textContent = "L’ordinateur gagne";
           winText.textContent = "Six de tes billes ont quitté le plateau. Une revanche ?";
+          winSecret.textContent = "";
           updateStatus("Partie terminée", "L’ordinateur a remporté le duel cette fois-ci.", "ai");
         }
         winOverlay.classList.remove("hidden");
@@ -778,6 +798,7 @@
         moveNumber = 0;
         lastMove = [];
         history = [];
+        winSecret.textContent = "";
         winOverlay.classList.add("hidden");
         updateStatus("À toi de jouer", "Clique sur une de tes billes pour commencer.");
         render();
